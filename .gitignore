@@ -1,0 +1,17 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Variables de entorno y secretos — JAMÁS al repo
+.env
+.env.*
+*.pem
+*.key
+
+# Basura de editores y SO
+.vscode/
+.DS_Store
+*.log
