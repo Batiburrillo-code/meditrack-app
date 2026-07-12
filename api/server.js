@@ -21,6 +21,6 @@ app.post("/alergias", (req, res) => {
   res.status(201).json(registro);
 });
 
-app.get("/", (req, res) => res.send("MediTrack API - registrar alergias (MEDI-42) en Azure - v1.2"));
+app.get("/", (req, res) => res.send("MediTrack API - registrar alergias (MEDI-42) en Azure - v1.3"));
 
 app.listen(PORT, () => console.log(`meditrack-api escuchando en puerto ${PORT}`));
