@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meditrack-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: meditrack-api }
+  template:
+    metadata:
+      labels: { app: meditrack-api }
+    spec:
+      containers:
+      - name: meditrack-api
+        image: meditrack-api:local
+        imagePullPolicy: Never
+        env:
+        - { name: PGHOST, value: "postgres" }
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet: { path: /health, port: 3000 }
+          initialDelaySeconds: 10
+          periodSeconds: 10

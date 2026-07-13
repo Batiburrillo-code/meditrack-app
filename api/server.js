@@ -6,7 +6,6 @@ app.use(require("cors")());
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
-// atrapa errores de las rutas async
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   console.error(e);
   res.status(500).json({ error: "Error interno" });
@@ -47,7 +46,10 @@ app.post("/pacientes/:id/registros", wrap(async (req, res) => {
   res.status(201).json(rows[0]);
 }));
 
-// arranca: primero prepara la BD, luego escucha
-initDb()
-  .then(() => app.listen(PORT, () => console.log(`meditrack-api escuchando en el puerto ${PORT}`)))
-  .catch((e) => { console.error("No se pudo iniciar la BD:", e); process.exit(1); });
+if (require.main === module) {
+  initDb()
+    .then(() => app.listen(PORT, () => console.log(`meditrack-api escuchando en el puerto ${PORT}`)))
+    .catch((e) => { console.error("No se pudo iniciar la BD:", e); process.exit(1); });
+}
+
+module.exports = app;

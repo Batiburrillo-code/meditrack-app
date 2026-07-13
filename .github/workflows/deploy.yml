@@ -1,29 +1,55 @@
-name: CI/CD - MediTrack API a AKS
+name: MediTrack CI/CD (local)
 on:
   push:
     branches: [ main ]
-env:
-  ACR_NAME: acrdevopsfinalas2
-  RG: rg-devops-curso-AS2
-  AKS_NAME: aks-devops-final-as2
-  NS: meditrack-dev
-  IMAGE: meditrack-api
+
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  ci:
+    runs-on: [self-hosted, dev]
     steps:
       - uses: actions/checkout@v4
-      - name: Login a Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Build y push a ACR
-        run: az acr build --registry $ACR_NAME --image $IMAGE:${{ github.sha }} ./api
-      - name: Credenciales de AKS
-        run: az aks get-credentials --resource-group $RG --name $AKS_NAME --overwrite-existing
-      - name: Desplegar en AKS
+      - name: Deps + Jest
+        working-directory: api
         run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl set image deployment/meditrack-api meditrack-api=$ACR_NAME.azurecr.io/$IMAGE:${{ github.sha }} -n $NS
-          kubectl rollout status deployment/meditrack-api -n $NS
+          npm ci
+          npm test
+      - name: Construir imagen
+        run: docker build -t meditrack-api:local api/
+      - name: Trivy (reporta, no bloquea)
+        run: trivy image --exit-code 0 --severity CRITICAL,HIGH meditrack-api:local
+      - name: Cargar imagen en minikube
+        run: minikube image load meditrack-api:local
+
+  deploy-dev:
+    needs: ci
+    runs-on: [self-hosted, dev]
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          kubectl apply -k k8s/overlays/dev
+          kubectl rollout restart deployment/meditrack-api -n meditrack-dev
+          kubectl rollout status deployment/meditrack-api -n meditrack-dev --timeout=90s
+
+  deploy-qa:
+    needs: deploy-dev
+    runs-on: [self-hosted, qa]
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          kubectl apply -k k8s/overlays/qa
+          kubectl rollout restart deployment/meditrack-api -n meditrack-qa
+          kubectl rollout status deployment/meditrack-api -n meditrack-qa --timeout=90s
+
+  deploy-prod:
+    needs: deploy-qa
+    runs-on: [self-hosted, prod]
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          kubectl apply -k k8s/overlays/prod
+          kubectl rollout restart deployment/meditrack-api -n meditrack-prod
+          kubectl rollout status deployment/meditrack-api -n meditrack-prod --timeout=90s
+      - name: Rollback si falla
+        if: failure()
+        run: kubectl rollout undo deployment/meditrack-api -n meditrack-prod
