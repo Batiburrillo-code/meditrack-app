@@ -54,3 +54,4 @@ if (require.main === module) {
     .catch((e) => { console.error("No se pudo iniciar la BD:", e); process.exit(1); });
 }
 module.exports = app;
+// MEDI: validacion de NSS unico (rechaza duplicados con 400)
