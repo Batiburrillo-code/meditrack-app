@@ -9,10 +9,10 @@ jobs:
     runs-on: [self-hosted, dev]
     steps:
       - uses: actions/checkout@v4
-      - name: Construir imagen
-        run: docker build -t meditrack-api:local api/
-      - name: Cargar imagen a minikube
-        run: minikube image load meditrack-api:local
+      - name: Construir imagen dentro de minikube
+        run: |
+          eval $(minikube docker-env)
+          docker build -t meditrack-api:local api/
 
   deploy-dev:
     needs: ci
