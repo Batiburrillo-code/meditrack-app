@@ -1,5 +1,4 @@
 const { Pool } = require("pg");
-
 // conexion: valores por defecto para LOCAL; en Azure se sobreescriben con variables de entorno
 const pool = new Pool({
   host: process.env.PGHOST || "localhost",
@@ -8,7 +7,6 @@ const pool = new Pool({
   password: process.env.PGPASSWORD || "meditrack123",
   database: process.env.PGDATABASE || "db_meditrack",
 });
-
 // crea las 2 tablas al arrancar si no existen
 async function initDb() {
   await pool.query(`
@@ -31,7 +29,10 @@ async function initDb() {
       consultorio TEXT
     );
   `);
+  // auditoria: fecha de alta del paciente (aplica tambien a tablas ya existentes)
+  await pool.query(`
+    ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS creado_en TIMESTAMP DEFAULT NOW();
+  `);
   console.log("[db] tablas listas");
 }
-
 module.exports = { pool, initDb };
