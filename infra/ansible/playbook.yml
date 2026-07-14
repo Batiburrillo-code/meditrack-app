@@ -1,0 +1,30 @@
+---
+- name: Preparar la VM para MediTrack (Docker + Kubernetes)
+  hosts: local
+  become: true
+  tasks:
+    - name: Actualizar apt
+      apt: { update_cache: true }
+
+    - name: Instalar Docker y curl
+      apt:
+        name: [docker.io, curl]
+        state: present
+
+    - name: Agregar el usuario al grupo docker
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+
+    - name: Instalar kubectl
+      get_url:
+        url: https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+
+    - name: Instalar minikube
+      get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: "0755"
