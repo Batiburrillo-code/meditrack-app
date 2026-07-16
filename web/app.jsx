@@ -1,4 +1,4 @@
-const API = "http://localhost:3000";
+const API = "/api";
 const { useState, useEffect } = React;
 
 function App() {
