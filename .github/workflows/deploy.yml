@@ -9,10 +9,11 @@ jobs:
     runs-on: [self-hosted, dev]
     steps:
       - uses: actions/checkout@v4
-      - name: Construir imagen dentro de minikube
+      - name: Construir las 2 imagenes dentro de minikube
         run: |
           eval $(minikube docker-env)
           docker build -t meditrack-api:local api/
+          docker build -t meditrack-web:local web/
 
   deploy-dev:
     needs: ci
@@ -20,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: kubectl apply -k k8s/overlays/dev
+      - run: kubectl rollout restart deployment/meditrack-api deployment/meditrack-web -n meditrack-dev
+      - run: kubectl rollout status deployment/meditrack-api -n meditrack-dev --timeout=180s
+      - run: kubectl rollout status deployment/meditrack-web -n meditrack-dev --timeout=180s
 
   deploy-qa:
     needs: deploy-dev
@@ -27,6 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: kubectl apply -k k8s/overlays/qa
+      - run: kubectl rollout restart deployment/meditrack-api deployment/meditrack-web -n meditrack-qa
+      - run: kubectl rollout status deployment/meditrack-api -n meditrack-qa --timeout=180s
+      - run: kubectl rollout status deployment/meditrack-web -n meditrack-qa --timeout=180s
 
   deploy-prod:
     needs: deploy-qa
@@ -35,8 +42,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: kubectl apply -k k8s/overlays/prod
-      - run: kubectl rollout restart deployment/meditrack-api -n meditrack-prod
-      - run: kubectl rollout status deployment/meditrack-api -n meditrack-prod --timeout=210s
+      - run: kubectl rollout restart deployment/meditrack-api deployment/meditrack-web -n meditrack-prod
+      - run: kubectl rollout status deployment/meditrack-api -n meditrack-prod --timeout=180s
+      - run: kubectl rollout status deployment/meditrack-web -n meditrack-prod --timeout=180s
       - name: Rollback si falla
         if: failure()
-        run: kubectl rollout undo deployment/meditrack-api -n meditrack-prod
+        run: |
+          kubectl rollout undo deployment/meditrack-api -n meditrack-prod
+          kubectl rollout undo deployment/meditrack-web -n meditrack-prod
