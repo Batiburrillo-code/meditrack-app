@@ -9,6 +9,10 @@ jobs:
     runs-on: [self-hosted, dev]
     steps:
       - uses: actions/checkout@v4
+      - name: Validar sintaxis de la API (Node)
+        run: |
+          node --check api/server.js
+          node --check api/db.js
       - name: Construir las 2 imagenes dentro de minikube
         run: |
           eval $(minikube docker-env)
@@ -22,8 +26,31 @@ jobs:
       - uses: actions/checkout@v4
       - run: kubectl apply -k k8s/overlays/dev
       - run: kubectl rollout restart deployment/meditrack-api deployment/meditrack-web -n meditrack-dev
-      - run: kubectl rollout status deployment/meditrack-api -n meditrack-dev --timeout=180s
-      - run: kubectl rollout status deployment/meditrack-web -n meditrack-dev --timeout=180s
+      - name: Verificar rollout
+        run: |
+          kubectl rollout status deployment/meditrack-api -n meditrack-dev --timeout=180s
+          kubectl rollout status deployment/meditrack-web -n meditrack-dev --timeout=180s
+      - name: Health check
+        run: |
+          IP=$(minikube ip)
+          PORT=$(kubectl get svc meditrack-api-service -n meditrack-dev -o jsonpath='{.spec.ports[0].nodePort}')
+          URL="http://$IP:$PORT/health"
+          echo "Probando $URL"
+          for i in 1 2 3 4 5 6; do
+            if curl --fail --silent "$URL"; then echo; echo "Health check OK"; exit 0; fi
+            echo "Intento $i fallido, esperando..."; sleep 5
+          done
+          echo "La API no respondio"; exit 1
+      - name: Mostrar recursos
+        run: |
+          kubectl get deployments -n meditrack-dev
+          kubectl get pods -n meditrack-dev
+          kubectl get services -n meditrack-dev
+      - name: Mostrar URL del portal
+        run: |
+          IP=$(minikube ip)
+          PORT=$(kubectl get svc meditrack-web-service -n meditrack-dev -o jsonpath='{.spec.ports[0].nodePort}')
+          echo "Portal disponible en: http://$IP:$PORT"
 
   deploy-qa:
     needs: deploy-dev
@@ -32,8 +59,31 @@ jobs:
       - uses: actions/checkout@v4
       - run: kubectl apply -k k8s/overlays/qa
       - run: kubectl rollout restart deployment/meditrack-api deployment/meditrack-web -n meditrack-qa
-      - run: kubectl rollout status deployment/meditrack-api -n meditrack-qa --timeout=180s
-      - run: kubectl rollout status deployment/meditrack-web -n meditrack-qa --timeout=180s
+      - name: Verificar rollout
+        run: |
+          kubectl rollout status deployment/meditrack-api -n meditrack-qa --timeout=180s
+          kubectl rollout status deployment/meditrack-web -n meditrack-qa --timeout=180s
+      - name: Health check
+        run: |
+          IP=$(minikube ip)
+          PORT=$(kubectl get svc meditrack-api-service -n meditrack-qa -o jsonpath='{.spec.ports[0].nodePort}')
+          URL="http://$IP:$PORT/health"
+          echo "Probando $URL"
+          for i in 1 2 3 4 5 6; do
+            if curl --fail --silent "$URL"; then echo; echo "Health check OK"; exit 0; fi
+            echo "Intento $i fallido, esperando..."; sleep 5
+          done
+          echo "La API no respondio"; exit 1
+      - name: Mostrar recursos
+        run: |
+          kubectl get deployments -n meditrack-qa
+          kubectl get pods -n meditrack-qa
+          kubectl get services -n meditrack-qa
+      - name: Mostrar URL del portal
+        run: |
+          IP=$(minikube ip)
+          PORT=$(kubectl get svc meditrack-web-service -n meditrack-qa -o jsonpath='{.spec.ports[0].nodePort}')
+          echo "Portal disponible en: http://$IP:$PORT"
 
   deploy-prod:
     needs: deploy-qa
@@ -43,8 +93,31 @@ jobs:
       - uses: actions/checkout@v4
       - run: kubectl apply -k k8s/overlays/prod
       - run: kubectl rollout restart deployment/meditrack-api deployment/meditrack-web -n meditrack-prod
-      - run: kubectl rollout status deployment/meditrack-api -n meditrack-prod --timeout=180s
-      - run: kubectl rollout status deployment/meditrack-web -n meditrack-prod --timeout=180s
+      - name: Verificar rollout
+        run: |
+          kubectl rollout status deployment/meditrack-api -n meditrack-prod --timeout=180s
+          kubectl rollout status deployment/meditrack-web -n meditrack-prod --timeout=180s
+      - name: Health check
+        run: |
+          IP=$(minikube ip)
+          PORT=$(kubectl get svc meditrack-api-service -n meditrack-prod -o jsonpath='{.spec.ports[0].nodePort}')
+          URL="http://$IP:$PORT/health"
+          echo "Probando $URL"
+          for i in 1 2 3 4 5 6; do
+            if curl --fail --silent "$URL"; then echo; echo "Health check OK"; exit 0; fi
+            echo "Intento $i fallido, esperando..."; sleep 5
+          done
+          echo "La API no respondio"; exit 1
+      - name: Mostrar recursos
+        run: |
+          kubectl get deployments -n meditrack-prod
+          kubectl get pods -n meditrack-prod
+          kubectl get services -n meditrack-prod
+      - name: Mostrar URL del portal
+        run: |
+          IP=$(minikube ip)
+          PORT=$(kubectl get svc meditrack-web-service -n meditrack-prod -o jsonpath='{.spec.ports[0].nodePort}')
+          echo "Portal disponible en: http://$IP:$PORT"
       - name: Rollback si falla
         if: failure()
         run: |
